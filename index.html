@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050b1f">
+<title>mind-orbit · mental health score predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050b1f; --bg2:#0a1236; --panel:rgba(9,17,44,.74); --panel2:rgba(5,10,28,.7);
+  --line:rgba(120,150,230,.18); --line2:rgba(120,150,230,.32);
+  --text:#e6ecff; --muted:#8b98c4; --dim:#5f6d9c;
+  --accent:#5aa9ff; --accent2:#8f7bff; --good:#3ddc97; --warn:#ffb84d; --bad:#ff5c7c;
+  --ui:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:8px;
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  min-height:100dvh;font-family:var(--ui);color:var(--text);line-height:1.5;font-size:15px;
+  background:radial-gradient(1000px 600px at 85% -10%,#15267044,transparent 60%),
+             radial-gradient(800px 500px at -10% 105%,#33207a33,transparent 60%),
+             linear-gradient(180deg,var(--bg2),var(--bg) 55%);
+  background-attachment:fixed;overflow-x:hidden;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+body::before{ /* faint blueprint grid */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;opacity:.13;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 30%,#000 10%,transparent 75%);mask-image:radial-gradient(ellipse at 50% 30%,#000 10%,transparent 75%);
+}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+.wrap{position:relative;z-index:1;max-width:1140px;margin:0 auto;padding:22px 18px 48px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:34px;font-family:var(--mono);font-size:.82rem}
+.brand{color:var(--muted);display:flex;align-items:center;gap:8px}
+.brand b{color:var(--text);font-weight:500}
+.brand svg{width:18px;height:18px}
+.status{display:flex;align-items:center;gap:8px;padding:5px 11px;border:1px solid var(--line);border-radius:99px;background:var(--panel2);color:var(--muted)}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.status.on i{background:var(--good);box-shadow:0 0 8px var(--good)}
+.status.off i{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+
+.hero{margin-bottom:26px;max-width:720px}
+h1{font-size:clamp(1.7rem,4.6vw,2.6rem);line-height:1.12;font-weight:700;letter-spacing:-.025em}
+.hero p{color:var(--muted);margin-top:10px;max-width:60ch}
+.hero code{font-family:var(--mono);font-size:.85em;color:var(--accent);background:#5aa9ff14;padding:2px 6px;border-radius:5px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:18px;align-items:start}
+@media(max-width:940px){.grid{grid-template-columns:1fr}}
+
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 24px 60px -30px #000d;overflow:hidden}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px 0 16px;height:42px;border-bottom:1px solid var(--line);background:#0a13385c;font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.bar .file{color:var(--text)}
+.tabs{display:flex;height:100%}
+.tab{background:none;border:0;color:var(--muted);font:inherit;padding:0 12px;cursor:pointer;height:100%;border-bottom:2px solid transparent;transition:color .2s,border-color .2s}
+.tab:hover{color:var(--text)}
+.tab[aria-selected=true]{color:var(--text);border-color:var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.body{padding:20px 18px 20px}
+
+/* form */
+fieldset{border:0;padding:0;min-width:0;margin-bottom:26px}
+legend{font-family:var(--mono);font-size:.78rem;color:var(--accent);margin-bottom:14px;padding:0;display:block;width:100%;border-bottom:1px dashed var(--line);padding-bottom:8px}
+legend span{color:var(--dim)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+.f{margin-bottom:16px;min-width:0}
+.f:last-child{margin-bottom:0}
+.row+.row,.row+.f{margin-top:16px}
+@media(max-width:520px){.row .f:not(:last-child){margin-bottom:16px}}
+.f>label,.f>.lab{display:flex;justify-content:space-between;align-items:baseline;font-size:.86rem;font-weight:500;margin-bottom:7px;color:#cdd7fb}
+.f .u{font-family:var(--mono);font-size:.74rem;color:var(--dim);font-weight:400}
+select,input[type=number]{
+  width:100%;height:42px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:var(--r);
+  padding:0 12px;font:inherit;font-size:16px;appearance:none;-webkit-appearance:none;transition:border-color .15s,box-shadow .15s;
+}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 19px) 18px,calc(100% - 14px) 18px;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+option{background:#0a1236}
+select:hover,input[type=number]:hover{border-color:var(--line2)}
+select:focus-visible,input[type=number]:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px #5aa9ff26}
+select:invalid,select.empty{color:var(--dim)}
+
+.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--panel2)}
+.seg button{flex:1;min-width:0;background:none;border:0;border-right:1px solid var(--line);color:var(--muted);font:inherit;font-size:.86rem;height:40px;padding:0 6px;cursor:pointer;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--text);background:#5aa9ff12}
+.seg button[aria-checked=true]{background:#5aa9ff26;color:#fff;box-shadow:inset 0 -2px 0 var(--accent)}
+.seg.stress button[data-v=Low][aria-checked=true]{background:#3ddc9722;box-shadow:inset 0 -2px 0 var(--good)}
+.seg.stress button[data-v=Medium][aria-checked=true]{background:#ffb84d22;box-shadow:inset 0 -2px 0 var(--warn)}
+.seg.stress button[data-v=High][aria-checked=true]{background:#ff8a4d22;box-shadow:inset 0 -2px 0 #ff8a4d}
+.seg.stress button[data-v="Very High"][aria-checked=true]{background:#ff5c7c22;box-shadow:inset 0 -2px 0 var(--bad)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+.sl{display:grid;grid-template-columns:1fr 84px;gap:14px;align-items:center}
+input[type=number].mini{height:36px;text-align:right;font-family:var(--mono);font-size:16px;padding:0 10px}
+input[type=range]{--p:50%;width:100%;height:28px;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2)) 0/var(--p) 100% no-repeat,#ffffff1c}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:#ffffff1c}
+input[type=range]::-moz-range-progress{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:4px;background:#fff;margin-top:-6px;box-shadow:0 0 0 3px #5aa9ff44;transition:box-shadow .15s}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:4px;background:#fff;box-shadow:0 0 0 3px #5aa9ff44}
+input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 6px #5aa9ff44}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+.f.missing>label,.f.missing>.lab{color:var(--bad)}
+.f.missing select,.f.missing input[type=number],.f.missing .seg{border-color:var(--bad);box-shadow:0 0 0 3px #ff5c7c1f}
+.f.missing{animation:shake .4s}
+@keyframes shake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+
+.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.run{
+  display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 20px;border:0;border-radius:var(--r);cursor:pointer;
+  font:inherit;font-weight:600;font-size:.95rem;color:#04102b;background:linear-gradient(180deg,#7dbcff,#4f98f5);
+  box-shadow:0 8px 24px -10px #4f98f5cc,inset 0 1px 0 #ffffff66;transition:transform .12s,box-shadow .2s,filter .2s;-webkit-tap-highlight-color:transparent;
+}
+.run:hover{filter:brightness(1.07);box-shadow:0 12px 30px -10px #4f98f5}
+.run:active{transform:scale(.98)}
+.run:disabled{opacity:.6;cursor:progress}
+.run:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.run kbd{font-family:var(--mono);font-size:.7rem;background:#04102b22;border-radius:4px;padding:2px 6px}
+.reset{background:none;border:1px solid var(--line);color:var(--muted);height:46px;padding:0 16px;border-radius:var(--r);font:inherit;cursor:pointer;transition:color .2s,border-color .2s}
+.reset:hover{color:var(--text);border-color:var(--line2)}
+.msg{font-family:var(--mono);font-size:.8rem;color:var(--bad);margin-top:14px;min-height:1.3em}
+@media(max-width:520px){.run kbd{display:none}.run{flex:1;justify-content:center}}
+
+/* output panel */
+.out{position:sticky;top:18px}
+@media(max-width:940px){.out{position:static}}
+.pane{display:none;min-height:430px}
+.pane.on{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:430px;padding:24px 18px}
+
+.gauge{width:min(100%,380px);display:block;overflow:visible}
+.gauge .track{stroke:#ffffff14}
+#needle{transform-origin:150px 150px;transform:rotate(-90deg)}
+.score{font-family:var(--mono);font-weight:700;font-size:clamp(2.8rem,10vw,3.8rem);line-height:1;letter-spacing:-.04em;margin-top:-4px}
+.score small{font-size:.32em;color:var(--dim);font-weight:400;letter-spacing:0}
+.verdict{margin-top:14px;font-family:var(--mono);font-size:.85rem;padding:5px 12px;border:1px solid currentColor;border-radius:6px;color:var(--dim);transition:color .3s}
+.idle-note{color:var(--dim);font-family:var(--mono);font-size:.8rem;margin-top:14px}
+.meta{font-family:var(--mono);font-size:.76rem;color:var(--dim);margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.meta b{color:var(--good);font-weight:500}
+.blurb{color:var(--muted);font-size:.9rem;max-width:44ch;margin-top:12px}
+.insights{width:100%;margin-top:22px;text-align:left;border-top:1px dashed var(--line);padding-top:16px}
+.insights h3{font-family:var(--mono);font-size:.76rem;font-weight:500;color:var(--dim);margin-bottom:10px}
+.ins{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:8px 0;font-size:.88rem;opacity:0;transform:translateX(-6px);animation:slide .4s forwards}
+@keyframes slide{to{opacity:1;transform:none}}
+.ins .m{font-family:var(--mono);font-weight:700}
+.ins.pos .m{color:var(--good)}.ins.neg .m{color:var(--bad)}
+.ins b{font-weight:600}.ins span{color:var(--muted)}
+.note{color:var(--dim);font-size:.75rem;margin-top:16px;text-align:left;width:100%}
+
+/* terminal loading */
+.term{font-family:var(--mono);font-size:.82rem;padding:20px 18px;min-height:430px;color:var(--muted);text-align:left}
+.term .l{opacity:0;animation:slide .3s forwards;white-space:pre-wrap;word-break:break-word}
+.term .p{color:var(--accent)}.term .ok{color:var(--good)}
+.term .cur{display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.prog{height:3px;background:#ffffff14;border-radius:3px;margin-top:18px;overflow:hidden}
+.prog i{display:block;height:100%;width:35%;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);animation:sweep 1.3s ease-in-out infinite}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+
+/* code panes */
+pre{font-family:var(--mono);font-size:.8rem;line-height:1.7;padding:18px;overflow-x:auto;color:#c5d1f7;min-height:430px;tab-size:2}
+.k{color:#7fb8ff}.s{color:#8ee3b0}.n{color:#ffc27a}
+.errbig{font-family:var(--mono);font-size:2rem;color:var(--bad);font-weight:700}
+.errmsg{color:var(--muted);max-width:40ch;margin:10px 0 18px;font-size:.9rem}
+
+footer{position:relative;z-index:1;text-align:center;color:var(--dim);font-family:var(--mono);font-size:.75rem;padding:0 18px 28px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#5aa9ff" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-25 12 12)"/></svg>
+      <span>mind-orbit<b> / predict</b></span>
+    </div>
+    <div class="status" id="status"><i></i><span>checking api</span></div>
+  </div>
+
+  <div class="hero">
+    <h1>Student mental health score predictor</h1>
+    <p>Enter a student's profile and habits. A trained regression model returns a score from 0 to 10, where higher is better. Sends a <code>POST /predict</code> request to the FastAPI backend.</p>
+  </div>
+
+  <div class="grid">
+    <!-- INPUT -->
+    <section class="box" aria-label="Input">
+      <div class="bar"><span class="file">input.form</span><span>12 fields</span></div>
+      <form class="body" id="form" novalidate>
+        <fieldset>
+          <legend>// profile</legend>
+          <div class="row">
+            <div class="f" id="f-Gender"><div class="lab">Gender</div>
+              <div class="seg" role="radiogroup" aria-label="Gender" data-name="Gender">
+                <button type="button" role="radio" aria-checked="false" data-v="Male">Male</button>
+                <button type="button" role="radio" aria-checked="false" data-v="Female">Female</button>
+              </div>
+            </div>
+            <div class="f" id="f-Age"><label for="age">Age <span class="u">int · 10–100</span></label>
+              <input type="number" id="age" inputmode="numeric" min="10" max="100" value="20">
+            </div>
+          </div>
+          <div class="row">
+            <div class="f" id="f-Country"><label for="country">Country</label>
+              <select id="country" class="empty"><option value="">Select…</option></select>
+            </div>
+            <div class="f" id="f-Academic_Level"><label for="level">Academic level</label>
+              <select id="level" class="empty">
+                <option value="">Select…</option><option value="High School">High School</option><option value="Undergraduate">Undergraduate</option><option value="Graduate">Graduate</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>// social_media</legend>
+          <div class="row">
+            <div class="f" id="f-Most_Used_Platform"><label for="platform">Most used platform</label>
+              <select id="platform" class="empty"><option value="">Select…</option></select>
+            </div>
+            <div class="f" id="f-Purpose_Of_Use"><label for="purpose">Main purpose</label>
+              <select id="purpose" class="empty">
+                <option value="">Select…</option><option>Entertainment</option><option>Education</option><option>Networking</option><option>News</option>
+              </select>
+            </div>
+          </div>
+          <div class="f"><label for="usage">Avg daily usage <span class="u">hours</span></label>
+            <div class="sl"><input type="range" id="usage" min="0" max="16" step="0.1" value="4"><input class="mini" type="number" id="usageN" min="0" max="24" step="0.1" value="4"></div></div>
+          <div class="f"><label for="unlocks">Daily phone unlocks <span class="u">count</span></label>
+            <div class="sl"><input type="range" id="unlocks" min="0" max="400" step="1" value="100"><input class="mini" type="number" id="unlocksN" min="0" step="1" value="100"></div></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>// lifestyle</legend>
+          <div class="f"><label for="sleep">Sleep per night <span class="u">hours</span></label>
+            <div class="sl"><input type="range" id="sleep" min="2" max="12" step="0.1" value="7"><input class="mini" type="number" id="sleepN" min="0" max="24" step="0.1" value="7"></div></div>
+          <div class="f"><label for="study">Study hours <span class="u">per day</span></label>
+            <div class="sl"><input type="range" id="study" min="0" max="12" step="0.1" value="3"><input class="mini" type="number" id="studyN" min="0" max="24" step="0.1" value="3"></div></div>
+          <div class="f"><label for="activity">Physical activity <span class="u">hours per day</span></label>
+            <div class="sl"><input type="range" id="activity" min="0" max="6" step="0.1" value="1"><input class="mini" type="number" id="activityN" min="0" max="24" step="0.1" value="1"></div></div>
+          <div class="f" id="f-Stress_Level"><div class="lab">Stress level</div>
+            <div class="seg stress" role="radiogroup" aria-label="Stress level" data-name="Stress_Level">
+              <button type="button" role="radio" aria-checked="false" data-v="Low">Low</button>
+              <button type="button" role="radio" aria-checked="false" data-v="Medium">Medium</button>
+              <button type="button" role="radio" aria-checked="false" data-v="High">High</button>
+              <button type="button" role="radio" aria-checked="false" data-v="Very High">Very high</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="run" id="run" type="submit"><span id="runLabel">Run prediction</span><kbd>Ctrl ↵</kbd></button>
+          <button class="reset" id="reset" type="button">Reset</button>
+        </div>
+        <div class="msg" id="msg" role="alert"></div>
+      </form>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="box out" aria-label="Output" aria-live="polite">
+      <div class="bar">
+        <span class="file" id="outTitle">output</span>
+        <div class="tabs" role="tablist" id="tabs" hidden>
+          <button class="tab" role="tab" data-t="score" aria-selected="true">score</button>
+          <button class="tab" role="tab" data-t="req" aria-selected="false">request</button>
+          <button class="tab" role="tab" data-t="res" aria-selected="false">response</button>
+        </div>
+      </div>
+
+      <!-- idle / result share the gauge -->
+      <div class="pane on" id="p-score">
+        <div class="center">
+          <svg class="gauge" viewBox="0 0 300 180" role="img" aria-label="Score gauge">
+            <defs>
+              <linearGradient id="gg" gradientUnits="userSpaceOnUse" x1="30" y1="0" x2="270" y2="0">
+                <stop offset="0" stop-color="#ff5c7c"/><stop offset=".42" stop-color="#ffb84d"/><stop offset=".72" stop-color="#a6e36a"/><stop offset="1" stop-color="#3ddc97"/>
+              </linearGradient>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            <path class="track" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke-width="12" stroke-linecap="round"/>
+            <path id="arc" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke="url(#gg)" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" filter="url(#glow)"/>
+            <g id="ticks" fill="#5f6d9c" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle"></g>
+            <g id="needle"><line x1="150" y1="150" x2="150" y2="50" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="150" cy="150" r="7" fill="#fff"/><circle cx="150" cy="150" r="3" fill="#0a1236"/></g>
+          </svg>
+          <div class="score"><span id="scoreNum">--</span><small> /10</small></div>
+          <div class="verdict" id="verdict">idle</div>
+          <div class="idle-note" id="idleNote">Fill in the form and run a prediction.</div>
+          <div class="meta" id="meta" hidden></div>
+          <p class="blurb" id="blurb"></p>
+          <div class="insights" id="insights" hidden><h3>// factors from your input</h3><div id="insList"></div></div>
+          <p class="note" id="note" hidden>Statistical estimate from a student survey dataset. Not a diagnosis. If you are struggling, talk to a counselor, doctor, or someone you trust.</p>
+        </div>
+      </div>
+
+      <div class="pane" id="p-load"><div class="term"><div id="log"></div><div class="prog"><i></i></div></div></div>
+      <div class="pane" id="p-req"><pre id="reqCode"></pre></div>
+      <div class="pane" id="p-res"><pre id="resCode"></pre></div>
+      <div class="pane" id="p-err"><div class="center">
+        <div class="errbig" id="errCode">ERR</div>
+        <p class="errmsg" id="errText"></p>
+        <button class="reset" id="retry" type="button">Retry request</button>
+      </div></div>
+    </section>
+  </div>
+</div>
+<footer>FastAPI · scikit-learn · vanilla JS</footer>
+
+<script>
+/* ============ CONFIG ============
+   Set to your deployed FastAPI URL (no trailing slash), or '' for same origin. */
+const API_URL = 'http://127.0.0.1:8000';
+
+const COUNTRIES = ['Afghanistan','Albania','Andorra','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Belarus','Belgium','Bhutan','Bolivia','Bosnia','Brazil','Bulgaria','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cyprus','Czech Republic','Denmark','Ecuador','Egypt','Estonia','Finland','France','Georgia','Germany','Ghana','Greece','Hong Kong','Hungary','Iceland','India','Indonesia','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kosovo','Kuwait','Kyrgyzstan','Latvia','Lebanon','Liechtenstein','Lithuania','Luxembourg','Malaysia','Maldives','Malta','Mexico','Moldova','Monaco','Montenegro','Morocco','Nepal','Netherlands','New Zealand','Nigeria','North Macedonia','Norway','Oman','Pakistan','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','San Marino','Serbia','Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Sri Lanka','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Thailand','Trinidad','Turkey','UAE','UK','USA','Ukraine','Uruguay','Uzbekistan','Vatican City','Venezuela','Vietnam','Yemen','Other'];
+const PLATFORMS = ['Instagram','TikTok','YouTube','WhatsApp','Facebook','Snapchat','Twitter','LinkedIn','LINE','KakaoTalk','VKontakte','WeChat'];
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const state = {};
+let lastPayload = null, busy = false, logTimer = null;
+
+$('#country').insertAdjacentHTML('beforeend', COUNTRIES.map(c => `<option>${c}</option>`).join(''));
+$('#platform').insertAdjacentHTML('beforeend', PLATFORMS.map(c => `<option>${c}</option>`).join(''));
+$$('select').forEach(s => s.addEventListener('change', () => s.classList.toggle('empty', !s.value)));
+
+/* segmented controls */
+$$('.seg').forEach(g => {
+  g.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    g.querySelectorAll('button').forEach(x => x.setAttribute('aria-checked', x === b));
+    state[g.dataset.name] = b.dataset.v;
+  });
+  g.addEventListener('keydown', e => {
+    if (!['ArrowRight','ArrowLeft'].includes(e.key)) return;
+    const items = [...g.querySelectorAll('button')], i = items.indexOf(document.activeElement); if (i < 0) return;
+    e.preventDefault();
+    const n = items[(i + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length]; n.focus(); n.click();
+  });
+});
+
+/* slider <-> number sync */
+const SL = { usage:1, unlocks:0, sleep:1, study:1, activity:1 };
+Object.keys(SL).forEach(id => {
+  const r = $('#' + id), n = $('#' + id + 'N');
+  const paint = () => r.style.setProperty('--p', (Math.min(Math.max((r.value - r.min) / (r.max - r.min), 0), 1) * 100) + '%');
+  r.addEventListener('input', () => { n.value = (+r.value).toFixed(SL[id]); paint(); });
+  n.addEventListener('input', () => { if (n.value !== '') { r.value = n.value; paint(); } });
+  paint();
+});
+
+/* validation */
+function clearMissing() { $$('.f.missing').forEach(f => f.classList.remove('missing')); $('#msg').textContent = ''; }
+document.addEventListener('input', clearMissing);
+document.addEventListener('click', e => { if (e.target.closest('.f')) clearMissing(); });
+
+function validate() {
+  const checks = [
+    ['Gender', !state.Gender, 'gender is required'],
+    ['Age', !(+$('#age').value >= 10 && +$('#age').value <= 100), 'age must be between 10 and 100'],
+    ['Country', !$('#country').value, 'country is required'],
+    ['Academic_Level', !$('#level').value, 'academic level is required'],
+    ['Most_Used_Platform', !$('#platform').value, 'most used platform is required'],
+    ['Purpose_Of_Use', !$('#purpose').value, 'main purpose is required'],
+    ['Stress_Level', !state.Stress_Level, 'stress level is required']
+  ];
+  for (const [id, bad, msg] of checks) if (bad) return { id, msg };
+  for (const id of Object.keys(SL)) { const v = $('#' + id + 'N').value; if (v === '' || +v < 0 || +v > 24 && id !== 'unlocks') return { id: null, el: $('#' + id + 'N').closest('.f'), msg: `${id}: value out of range` }; }
+  return null;
+}
+
+function buildPayload() {
+  return {
+    Gender: state.Gender,
+    Age: parseInt($('#age').value, 10),
+    Country: $('#country').value,
+    Academic_Level: $('#level').value,
+    Purpose_Of_Use: $('#purpose').value,
+    Most_Used_Platform: $('#platform').value,
+    Avg_Daily_Usage_Hours: +$('#usageN').value,
+    Daily_Unlocks: parseInt($('#unlocksN').value, 10),
+    Study_Hours: +$('#studyN').value,
+    Physical_Activity_Hours: +$('#activityN').value,
+    Sleep_Hours_Per_Night: +$('#sleepN').value,
+    Stress_Level: state.Stress_Level
+  };
+}
+
+/* panes */
+function pane(name) {
+  ['score','load','req','res','err'].forEach(p => $('#p-' + p).classList.toggle('on', p === name));
+  $$('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.t === name));
+}
+$('#tabs').addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) pane(t.dataset.t); });
+
+/* highlight JSON */
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function hl(obj) {
+  return esc(JSON.stringify(obj, null, 2)).replace(/("(?:[^"\\]|\\.)*")(\s*:)?|\b(-?\d+\.?\d*)\b/g,
+    (m, str, colon, num) => str ? (colon ? `<span class="k">${str}</span>${colon}` : `<span class="s">${str}</span>`) : `<span class="n">${num}</span>`);
+}
+
+/* API status ping */
+async function ping() {
+  const el = $('#status'), txt = el.querySelector('span');
+  try {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 8000);
+    const r = await fetch(API_URL + '/', { signal: c.signal }); clearTimeout(t);
+    if (!r.ok) throw 0;
+    el.className = 'status on'; txt.textContent = 'api online';
+  } catch { el.className = 'status off'; txt.textContent = 'api offline'; }
+}
+ping();
+
+/* submit */
+$('#form').addEventListener('submit', e => { e.preventDefault(); run(); });
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); } });
+$('#retry').onclick = () => run(true);
+
+const LOG = ['validating payload', 'encoding categorical features', 'model.predict()', 'waiting for response'];
+function startLog() {
+  const log = $('#log'); log.innerHTML = `<div class="l"><span class="p">$</span> POST ${esc(API_URL || location.origin)}/predict</div>`;
+  let i = 0;
+  logTimer = setInterval(() => {
+    if (i < LOG.length) { log.insertAdjacentHTML('beforeend', `<div class="l"><span class="p">></span> ${LOG[i++]}…</div>`); }
+    else if (!log.querySelector('.slow')) log.insertAdjacentHTML('beforeend', `<div class="l slow" id="slow"></div>`);
+    const slow = $('#slow'); if (slow && Date.now() - t0 > 6000) slow.textContent = '! server is slow to respond (cold start?)';
+  }, 480);
+  log.insertAdjacentHTML('beforeend', '<div class="l" id="cursorLine"><span class="cur"></span></div>');
+}
+let t0 = 0;
+
+async function run(useLast) {
+  if (busy) return;
+  if (!useLast) {
+    clearMissing();
+    const bad = validate();
+    if (bad) {
+      const f = bad.el || $('#f-' + bad.id);
+      f.classList.add('missing'); $('#msg').textContent = 'error: ' + bad.msg;
+      f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    lastPayload = buildPayload();
+  }
+  busy = true; $('#run').disabled = true; $('#runLabel').textContent = 'Running…';
+  $('#tabs').hidden = true; $('#outTitle').textContent = 'running…';
+  pane('load'); startLog(); t0 = Date.now();
+  if (matchMedia('(max-width:940px)').matches) $('.out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 45000);
+  try {
+    const res = await fetch(API_URL + '/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lastPayload), signal: ctrl.signal });
+    const ms = Date.now() - t0;
+    let body = null; try { body = await res.json(); } catch {}
+    if (!res.ok) {
+      const d = body && body.detail;
+      const text = Array.isArray(d) ? d.map(x => `${x.loc.slice(-1)}: ${x.msg}`).join('\n') : (d || 'Unexpected server response.');
+      throw { code: res.status, text };
+    }
+    await new Promise(r => setTimeout(r, Math.max(0, 2300 - ms))); // let the log finish
+    showResult(body, ms);
+  } catch (err) {
+    fail(err.code ? err : { code: err.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK', text: err.name === 'AbortError' ? 'No response after 45 s. The server may be starting up. Retry in a moment.' : 'Could not reach the API. Check that the server is running and that API_URL is correct.' });
+  } finally { clearTimeout(to); clearInterval(logTimer); busy = false; $('#run').disabled = false; $('#runLabel').textContent = 'Run prediction'; }
+}
+
+function fail(e) {
+  $('#errCode').textContent = e.code; $('#errText').textContent = e.text;
+  $('#outTitle').textContent = 'error'; pane('err');
+  $('#status').className = e.code === 'NETWORK' ? 'status off' : $('#status').className;
+  if (e.code === 'NETWORK') $('#status span').textContent = 'api offline';
+}
+
+/* result */
+(function ticks() {
+  let s = '';
+  for (let i = 0; i <= 10; i += 2) { const a = (-90 + i * 18) * Math.PI / 180; s += `<text x="${150 + 137 * Math.sin(a)}" y="${150 - 137 * Math.cos(a) + 3}">${i}</text>`; }
+  $('#ticks').innerHTML = s;
+})();
+
+function band(s) {
+  if (s < 5)   return { c: 'var(--bad)',  t: 'needs_attention', b: 'Habits in this profile match students with lower scores. Sleep and screen time are the easiest levers.' };
+  if (s < 6.5) return { c: 'var(--warn)', t: 'fair',            b: 'Mid-range result. A few adjustments could move the score up.' };
+  if (s < 8)   return { c: '#a6e36a',     t: 'good',            b: 'Balanced routine. Keep protecting sleep and downtime.' };
+  return { c: 'var(--good)', t: 'excellent', b: 'This profile matches the highest-scoring students in the dataset.' };
+}
+
+function insightsFor(d) {
+  const L = [], add = (pos, t, x) => L.push({ pos, t, x });
+  if (d.Sleep_Hours_Per_Night < 6) add(false, 'Short sleep', `${d.Sleep_Hours_Per_Night.toFixed(1)} h per night is under the usual 7 to 9 h.`);
+  else if (d.Sleep_Hours_Per_Night >= 7) add(true, 'Healthy sleep', `${d.Sleep_Hours_Per_Night.toFixed(1)} h per night.`);
+  if (d.Avg_Daily_Usage_Hours >= 5) add(false, 'Heavy social media use', `${d.Avg_Daily_Usage_Hours.toFixed(1)} h per day. More screen time goes with lower scores in the data.`);
+  else if (d.Avg_Daily_Usage_Hours <= 3) add(true, 'Light social media use', `${d.Avg_Daily_Usage_Hours.toFixed(1)} h per day.`);
+  if (d.Stress_Level === 'High' || d.Stress_Level === 'Very High') add(false, 'High stress', 'One of the strongest signals in the data.');
+  else if (d.Stress_Level === 'Low') add(true, 'Low stress', 'Linked with higher scores.');
+  if (d.Physical_Activity_Hours < 0.5) add(false, 'Little physical activity', 'A short daily walk already helps.');
+  else if (d.Physical_Activity_Hours >= 1) add(true, 'Active routine', `${d.Physical_Activity_Hours.toFixed(1)} h per day.`);
+  if (d.Daily_Unlocks > 150) add(false, 'Frequent phone checks', `${d.Daily_Unlocks} unlocks per day.`);
+  return L.slice(0, 5);
+}
+
+const ease = t => 1 - Math.pow(1 - t, 4);
+function showResult(body, ms) {
+  const score = body.predicted_mental_health_score, b = band(score), d = lastPayload;
+  $('#reqCode').innerHTML = `<span class="s">POST</span> /predict\n\n` + hl(d);
+  $('#resCode').innerHTML = `<span class="s">200 OK</span> · ${ms} ms\n\n` + hl(body);
+  $('#outTitle').textContent = 'output'; $('#tabs').hidden = false; pane('score');
+  $('#idleNote').hidden = true;
+  const meta = $('#meta'); meta.hidden = false; meta.innerHTML = `<span><b>200 OK</b></span><span>${ms} ms</span><span>model: regression</span>`;
+  const arc = $('#arc'), needle = $('#needle'), num = $('#scoreNum'), v = $('#verdict');
+  arc.style.strokeDashoffset = 100; needle.style.transform = 'rotate(-90deg)';
+  v.textContent = 'computing'; v.style.color = 'var(--dim)'; $('#blurb').textContent = '';
+  $('#insights').hidden = true; $('#note').hidden = true; $('#insList').innerHTML = '';
+
+  const frac = Math.min(Math.max(score / 10, 0), 1), dur = 2000, s0 = performance.now();
+  (function frame(now) {
+    const p = Math.min((now - s0) / dur, 1), e = ease(p), wob = p < 1 ? Math.sin(p * Math.PI * 3) * (1 - p) * 5 : 0;
+    arc.style.strokeDashoffset = 100 - e * frac * 100;
+    needle.style.transform = `rotate(${-90 + e * frac * 180 + wob}deg)`;
+    num.textContent = (e * score).toFixed(2);
+    if (p < 1) return requestAnimationFrame(frame);
+    num.textContent = score.toFixed(2);
+    v.textContent = b.t; v.style.color = b.c; $('#blurb').textContent = b.b;
+    const ins = insightsFor(d);
+    $('#insList').innerHTML = ins.map((x, i) => `<div class="ins ${x.pos ? 'pos' : 'neg'}" style="animation-delay:${i * 110}ms"><span class="m">${x.pos ? '+' : '−'}</span><div><b>${x.t}</b> <span>${x.x}</span></div></div>`).join('');
+    $('#insights').hidden = !ins.length; $('#note').hidden = false;
+  })(s0);
+}
+
+/* reset */
+$('#reset').onclick = () => {
+  $('#form').reset(); Object.keys(state).forEach(k => delete state[k]);
+  $$('.seg button').forEach(b => b.setAttribute('aria-checked', 'false'));
+  $$('select').forEach(s => s.classList.add('empty'));
+  Object.keys(SL).forEach(id => $('#' + id).dispatchEvent(new Event('input')));
+  clearMissing();
+  $('#arc').style.strokeDashoffset = 100; $('#needle').style.transform = 'rotate(-90deg)';
+  $('#scoreNum').textContent = '--'; $('#verdict').textContent = 'idle'; $('#verdict').style.color = 'var(--dim)';
+  $('#idleNote').hidden = false; $('#meta').hidden = true; $('#blurb').textContent = ''; $('#insights').hidden = true; $('#note').hidden = true;
+  $('#tabs').hidden = true; $('#outTitle').textContent = 'output'; pane('score');
+};
+
+/* starfield */
+(function sky() {
+  const cv = $('#sky'), ctx = cv.getContext('2d'), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, stars = [], shoot = [], mx = 0, my = 0, tx = 0, ty = 0, last = 0;
+  function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    stars = Array.from({ length: Math.round(Math.min(200, W * H / 7500)) }, () => { const z = Math.random(); return { x: Math.random() * W, y: Math.random() * H, z, r: .4 + z * 1.2, tw: Math.random() * 6.28, sp: .5 + Math.random() * 1.5, hue: Math.random() < .2 ? 262 : 215 }; });
+  }
+  addEventListener('resize', resize); resize();
+  addEventListener('pointermove', e => { tx = e.clientX / W - .5; ty = e.clientY / H - .5; }, { passive: true });
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H); mx += (tx - mx) * .05; my += (ty - my) * .05;
+    for (const s of stars) {
+      const a = reduce ? .7 : .4 + .6 * Math.abs(Math.sin(t / 1000 * s.sp + s.tw));
+      const x = ((s.x - mx * 28 * s.z) % W + W) % W, y = ((s.y - my * 28 * s.z) % H + H) % H;
+      ctx.beginPath(); ctx.arc(x, y, s.r, 0, 6.283); ctx.fillStyle = `hsla(${s.hue},90%,${80 + s.z * 15}%,${a * (.3 + s.z * .7)})`; ctx.fill();
+    }
+    if (!reduce) {
+      if (t - last > 5500 + Math.random() * 3000) { const a = Math.PI / 5 + Math.random() * .3; shoot.push({ x: Math.random() * W * .9, y: Math.random() * H * .35, vx: Math.cos(a) * 9, vy: Math.sin(a) * 9, life: 1 }); last = t; }
+      shoot = shoot.filter(s => s.life > 0);
+      for (const s of shoot) {
+        const g = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 9, s.y - s.vy * 9);
+        g.addColorStop(0, `rgba(210,228,255,${s.life})`); g.addColorStop(1, 'rgba(210,228,255,0)');
+        ctx.strokeStyle = g; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 9, s.y - s.vy * 9); ctx.stroke();
+        s.x += s.vx; s.y += s.vy; s.life -= .014;
+      }
+      requestAnimationFrame(draw);
+    }
+  }
+  reduce ? draw(0) : requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
